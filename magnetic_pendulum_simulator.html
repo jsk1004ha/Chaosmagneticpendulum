@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>카오스 자기 진자 궤적 시뮬레이션</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #11182c;
+      --panel2: #151f38;
+      --line: #24314f;
+      --text: #e8eefc;
+      --muted: #9daccc;
+      --accent: #7dd3fc;
+      --accent2: #fbbf24;
+      --danger: #fb7185;
+      --good: #86efac;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(125, 211, 252, 0.13), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.09), transparent 30%),
+        var(--bg);
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(340px, 410px) 1fr;
+      gap: 14px;
+      height: 100%;
+      padding: 14px;
+    }
+
+    aside, main {
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(17, 24, 44, 0.92);
+      box-shadow: 0 20px 45px var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    aside {
+      overflow: auto;
+      padding: 16px;
+    }
+
+    main {
+      display: grid;
+      grid-template-rows: 1fr minmax(210px, 30vh);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    h1 {
+      font-size: 21px;
+      line-height: 1.2;
+      margin: 2px 0 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(21, 31, 56, 0.74);
+      padding: 13px;
+      margin: 12px 0;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #f8fbff;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin: 10px 0 4px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    output, .value-pill {
+      min-width: 70px;
+      text-align: right;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, 0.09);
+      border: 1px solid rgba(125, 211, 252, 0.18);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 8px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, rgba(42, 59, 96, 0.95), rgba(28, 40, 70, 0.95));
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); border-color: rgba(125, 211, 252, 0.55); }
+    button:active { transform: translateY(0); }
+    button.primary { background: linear-gradient(180deg, #0ea5e9, #0369a1); border-color: rgba(125, 211, 252, 0.6); }
+    button.warn { background: linear-gradient(180deg, #ef4444, #991b1b); border-color: rgba(251, 113, 133, 0.6); }
+    button.full { grid-column: 1 / -1; }
+
+    .canvas-card {
+      min-height: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(5, 9, 19, 0.84);
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hud {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      display: grid;
+      gap: 6px;
+      pointer-events: none;
+      max-width: min(430px, calc(100% - 24px));
+    }
+
+    .hud-line {
+      width: fit-content;
+      max-width: 100%;
+      padding: 6px 9px;
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: 999px;
+      background: rgba(2, 6, 23, 0.64);
+      color: #dce8ff;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      backdrop-filter: blur(8px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .small-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(5, 9, 19, 0.84);
+      overflow: hidden;
+      position: relative;
+      min-height: 0;
+    }
+
+    .small-title {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      z-index: 3;
+      font-size: 12px;
+      color: #e8eefc;
+      background: rgba(2, 6, 23, 0.65);
+      border: 1px solid rgba(125, 211, 252, 0.15);
+      border-radius: 999px;
+      padding: 5px 8px;
+      backdrop-filter: blur(8px);
+    }
+
+    .progress {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      height: 9px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, 0.18);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      display: none;
+    }
+
+    .progress > div {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .metric {
+      background: rgba(2, 6, 23, 0.36);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .metric b {
+      display: block;
+      color: #f8fbff;
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 3px;
+    }
+
+    .metric span { color: var(--muted); font-size: 11px; }
+
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      margin: 8px 0 0;
+    }
+
+    .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.5);
+      border-radius: 6px;
+      padding: 1px 5px;
+      color: #e6edf7;
+    }
+
+    @media (max-width: 920px) {
+      body { overflow: auto; }
+      .app { grid-template-columns: 1fr; height: auto; min-height: 100%; }
+      aside { max-height: none; }
+      main { min-height: 1050px; }
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>카오스 자기 진자<br />궤적 시뮬레이터</h1>
+      <p class="subtitle">
+        5개 자석의 다중 우물 퍼텐셜, 중력 복원력, 선형 감쇠, 서보모터형 조화 외력을 4차 Runge-Kutta로 적분합니다.
+      </p>
+
+      <div class="section">
+        <div class="section-title">실행</div>
+        <div class="buttons">
+          <button id="toggleBtn" class="primary">일시정지</button>
+          <button id="resetBtn">초기화</button>
+          <button id="randomBtn">초기조건 랜덤</button>
+          <button id="kickBtn">작은 섭동 추가</button>
+        </div>
+        <p class="note">
+          캔버스를 클릭하면 그 위치에서 정지 상태로 다시 시작합니다. <span class="kbd">Space</span> 실행/정지, <span class="kbd">R</span> 초기화.
+        </p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">자석 배열</div>
+        <div class="row"><label for="nMagnets">자석 개수 N</label><output id="nMagnetsOut"></output></div>
+        <input id="nMagnets" type="range" min="3" max="8" step="1" value="5" />
+
+        <div class="row"><label for="magRadius">배치 반지름 R</label><output id="magRadiusOut"></output></div>
+        <input id="magRadius" type="range" min="15" max="80" step="1" value="40" />
+
+        <div class="row"><label for="height">자석-추 수직 이격 h</label><output id="heightOut"></output></div>
+        <input id="height" type="range" min="10" max="60" step="1" value="24" />
+
+        <div class="row"><label for="magStrength">유효 자기 강도 S</label><output id="magStrengthOut"></output></div>
+        <input id="magStrength" type="range" min="0" max="80" step="0.5" value="23" />
+      </div>
+
+      <div class="section">
+        <div class="section-title">진자·구동</div>
+        <div class="row"><label for="length">유효 길이 L</label><output id="lengthOut"></output></div>
+        <input id="length" type="range" min="250" max="850" step="0.5" value="529.5" />
+
+        <div class="row"><label for="damping">감쇠 계수 γ</label><output id="dampingOut"></output></div>
+        <input id="damping" type="range" min="0" max="0.25" step="0.001" value="0.025" />
+
+        <div class="check-row"><label for="driveOn">조화 외력 켜기</label><input id="driveOn" type="checkbox" checked /></div>
+
+        <div class="row"><label for="driveAmp">외력 가속도 진폭 A</label><output id="driveAmpOut"></output></div>
+        <input id="driveAmp" type="range" min="0" max="2.5" step="0.01" value="0.34" />
+
+        <div class="row"><label for="driveOmega">구동 각진동수 ω</label><output id="driveOmegaOut"></output></div>
+        <input id="driveOmega" type="range" min="0.2" max="8" step="0.01" value="3.49" />
+      </div>
+
+      <div class="section">
+        <div class="section-title">초기조건</div>
+        <div class="row"><label for="initX">x₀</label><output id="initXOut"></output></div>
+        <input id="initX" type="range" min="-95" max="95" step="0.5" value="23" />
+
+        <div class="row"><label for="initY">y₀</label><output id="initYOut"></output></div>
+        <input id="initY" type="range" min="-95" max="95" step="0.5" value="-14" />
+
+        <div class="row"><label for="initVX">vₓ₀</label><output id="initVXOut"></output></div>
+        <input id="initVX" type="range" min="-800" max="800" step="5" value="0" />
+
+        <div class="row"><label for="initVY">vᵧ₀</label><output id="initVYOut"></output></div>
+        <input id="initVY" type="range" min="-800" max="800" step="5" value="0" />
+      </div>
+
+      <div class="section">
+        <div class="section-title">수치해석·표시</div>
+        <div class="row"><label for="dt">적분 시간 간격 Δt</label><output id="dtOut"></output></div>
+        <input id="dt" type="range" min="0.5" max="8" step="0.1" value="2" />
+
+        <div class="row"><label for="simSpeed">시뮬레이션 배속</label><output id="simSpeedOut"></output></div>
+        <input id="simSpeed" type="range" min="0.2" max="8" step="0.1" value="1.7" />
+
+        <div class="row"><label for="zoom">표시 범위</label><output id="zoomOut"></output></div>
+        <input id="zoom" type="range" min="70" max="180" step="1" value="115" />
+
+        <div class="row"><label for="trailMax">궤적 길이</label><output id="trailMaxOut"></output></div>
+        <input id="trailMax" type="range" min="500" max="30000" step="500" value="12000" />
+
+        <div class="check-row"><label for="showField">퍼텐셜 지형 배경 표시</label><input id="showField" type="checkbox" checked /></div>
+        <div class="check-row"><label for="showPoincare">구동 위상 푸앵카레 점 표시</label><input id="showPoincare" type="checkbox" checked /></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">흡인 영역 프랙탈</div>
+        <div class="row"><label for="basinRes">해상도</label><output id="basinResOut"></output></div>
+        <input id="basinRes" type="range" min="45" max="150" step="5" value="90" />
+
+        <div class="row"><label for="basinTime">한 점당 적분 시간</label><output id="basinTimeOut"></output></div>
+        <input id="basinTime" type="range" min="3" max="14" step="0.5" value="7" />
+
+        <div class="buttons">
+          <button id="basinBtn" class="full">흡인 영역 계산</button>
+          <button id="cancelBasinBtn" class="full warn">계산 중지</button>
+        </div>
+        <p class="note">
+          프랙탈 경계는 계산량이 커서 낮은 해상도에서 먼저 확인한 뒤 높이는 것이 좋습니다. 흡인 영역 계산은 외력을 끈 감쇠계로 분류합니다.
+        </p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">실시간 지표</div>
+        <div class="metrics">
+          <div class="metric"><b id="timeMetric">0.00 s</b><span>시뮬레이션 시간</span></div>
+          <div class="metric"><b id="speedMetric">0.000</b><span>속도 크기 m/s</span></div>
+          <div class="metric"><b id="energyMetric">0.000</b><span>단위질량 에너지</span></div>
+          <div class="metric"><b id="nearestMetric">-</b><span>최근접 자석</span></div>
+        </div>
+        <p class="note">
+          잔차 방향 방식 raw bits: <span id="bitsText" style="color:#dce8ff; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; word-break: break-all;"></span><br />
+          1 비율: <span id="bitRatio" style="color: var(--accent)">-</span>
+        </p>
+      </div>
+    </aside>
+
+    <main>
+      <section class="canvas-card" id="mainCard">
+        <canvas id="simCanvas"></canvas>
+        <div class="hud">
+          <div class="hud-line" id="stateHud">x=0, y=0, vx=0, vy=0</div>
+          <div class="hud-line" id="paramHud">N=5, R=40 mm, h=24 mm</div>
+          <div class="hud-line" id="formulaHud">Uᵢ = S·10⁻⁸·(ρ²−2h²)/(ρ²+h²)^(5/2)</div>
+        </div>
+      </section>
+      <section class="bottom-grid">
+        <div class="small-card">
+          <div class="small-title">위상 공간: x - vₓ</div>
+          <canvas id="phaseCanvas"></canvas>
+        </div>
+        <div class="small-card">
+          <div class="small-title">흡인 영역 / 프랙탈 경계</div>
+          <canvas id="basinCanvas"></canvas>
+          <div class="progress" id="basinProgress"><div></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const G = 9.80665;
+  const TAU = Math.PI * 2;
+
+  const ids = [
+    'nMagnets', 'magRadius', 'height', 'magStrength', 'length', 'damping', 'driveOn',
+    'driveAmp', 'driveOmega', 'initX', 'initY', 'initVX', 'initVY', 'dt', 'simSpeed',
+    'zoom', 'trailMax', 'showField', 'showPoincare', 'basinRes', 'basinTime'
+  ];
+
+  const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  const out = Object.fromEntries(ids.filter(id => !['driveOn', 'showField', 'showPoincare'].includes(id))
+    .map(id => [id, document.getElementById(id + 'Out')]));
+
+  const simCanvas = document.getElementById('simCanvas');
+  const phaseCanvas = document.getElementById('phaseCanvas');
+  const basinCanvas = document.getElementById('basinCanvas');
+  const ctx = simCanvas.getContext('2d', { alpha: false });
+  const phaseCtx = phaseCanvas.getContext('2d', { alpha: false });
+  const basinCtx = basinCanvas.getContext('2d', { alpha: false });
+
+  const toggleBtn = document.getElementById('toggleBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const randomBtn = document.getElementById('randomBtn');
+  const kickBtn = document.getElementById('kickBtn');
+  const basinBtn = document.getElementById('basinBtn');
+  const cancelBasinBtn = document.getElementById('cancelBasinBtn');
+
+  const stateHud = document.getElementById('stateHud');
+  const paramHud = document.getElementById('paramHud');
+  const timeMetric = document.getElementById('timeMetric');
+  const speedMetric = document.getElementById('speedMetric');
+  const energyMetric = document.getElementById('energyMetric');
+  const nearestMetric = document.getElementById('nearestMetric');
+  const bitsText = document.getElementById('bitsText');
+  const bitRatio = document.getElementById('bitRatio');
+  const basinProgress = document.getElementById('basinProgress');
+  const basinProgressInner = basinProgress.querySelector('div');
+
+  let running = true;
+  let state = { x: 0.023, y: -0.014, vx: 0, vy: 0, t: 0 };
+  let trail = [];
+  let phasePoints = [];
+  let poincarePoints = [];
+  let previousDrivePhase = 0;
+  let sampleBuffer = [];
+  let bitBuffer = [];
+  let bitOnes = 0;
+  let bitTotal = 0;
+  let fieldCache = null;
+  let basinJob = null;
+
+  const magnetPalette = [
+    '#38bdf8', '#f97316', '#a78bfa', '#22c55e', '#ef4444', '#eab308', '#ec4899', '#14b8a6'
+  ];
+
+  function num(id) { return Number(el[id].value); }
+
+  function params() {
+    return {
+      n: Math.round(num('nMagnets')),
+      R: num('magRadius') / 1000,
+      h: num('height') / 1000,
+      kMag: num('magStrength') * 1e-8,
+      L: num('length') / 1000,
+      gamma: num('damping'),
+      driveOn: el.driveOn.checked,
+      driveA: num('driveAmp'),
+      driveOmega: num('driveOmega'),
+      dt: num('dt') / 1000,
+      simSpeed: num('simSpeed'),
+      viewRadius: num('zoom') / 1000,
+      trailMax: Math.round(num('trailMax')),
+      showField: el.showField.checked,
+      showPoincare: el.showPoincare.checked,
+      basinRes: Math.round(num('basinRes')),
+      basinTime: num('basinTime')
+    };
+  }
+
+  function magnets(p) {
+    const result = [];
+    const start = -Math.PI / 2;
+    for (let i = 0; i < p.n; i++) {
+      const a = start + i * TAU / p.n;
+      result.push({ x: p.R * Math.cos(a), y: p.R * Math.sin(a), a, i });
+    }
+    return result;
+  }
+
+  function acceleration(x, y, vx, vy, t, p, magList, driveOverride) {
+    let ax = -(G / p.L) * x - p.gamma * vx;
+    let ay = -(G / p.L) * y - p.gamma * vy;
+
+    for (const m of magList) {
+      const dx = x - m.x;
+      const dy = y - m.y;
+      const s = dx * dx + dy * dy;
+      const h2 = p.h * p.h;
+      const q = s + h2;
+      const denom = Math.pow(q, 3.5);
+      const coeff = -3 * p.kMag * (4 * h2 - s) / denom;
+      ax += coeff * dx;
+      ay += coeff * dy;
+    }
+
+    const useDrive = driveOverride ?? p.driveOn;
+    if (useDrive && p.driveA !== 0) {
+      ax += p.driveA * Math.sin(p.driveOmega * t);
+    }
+
+    const maxA = 350;
+    const a2 = ax * ax + ay * ay;
+    if (a2 > maxA * maxA) {
+      const r = maxA / Math.sqrt(a2);
+      ax *= r;
+      ay *= r;
+    }
+    return [ax, ay];
+  }
+
+  function derivative(s, p, magList) {
+    const [ax, ay] = acceleration(s.x, s.y, s.vx, s.vy, s.t, p, magList);
+    return { x: s.vx, y: s.vy, vx: ax, vy: ay, t: 1 };
+  }
+
+  function addState(a, k, scale) {
+    return {
+      x: a.x + k.x * scale,
+      y: a.y + k.y * scale,
+      vx: a.vx + k.vx * scale,
+      vy: a.vy + k.vy * scale,
+      t: a.t + k.t * scale
+    };
+  }
+
+  function rk4Step(s, dt, p, magList) {
+    const k1 = derivative(s, p, magList);
+    const k2 = derivative(addState(s, k1, dt * 0.5), p, magList);
+    const k3 = derivative(addState(s, k2, dt * 0.5), p, magList);
+    const k4 = derivative(addState(s, k3, dt), p, magList);
+    return {
+      x: s.x + dt * (k1.x + 2 * k2.x + 2 * k3.x + k4.x) / 6,
+      y: s.y + dt * (k1.y + 2 * k2.y + 2 * k3.y + k4.y) / 6,
+      vx: s.vx + dt * (k1.vx + 2 * k2.vx + 2 * k3.vx + k4.vx) / 6,
+      vy: s.vy + dt * (k1.vy + 2 * k2.vy + 2 * k3.vy + k4.vy) / 6,
+      t: s.t + dt
+    };
+  }
+
+  function pseudoEnergy(s, p, magList) {
+    let u = 0.5 * (G / p.L) * (s.x * s.x + s.y * s.y);
+    for (const m of magList) {
+      const dx = s.x - m.x;
+      const dy = s.y - m.y;
+      const rho2 = dx * dx + dy * dy;
+      const h2 = p.h * p.h;
+      u += p.kMag * (rho2 - 2 * h2) / Math.pow(rho2 + h2, 2.5);
+    }
+    const kinetic = 0.5 * (s.vx * s.vx + s.vy * s.vy);
+    return kinetic + u;
+  }
+
+  function nearestMagnet(s, magList) {
+    let idx = -1;
+    let best = Infinity;
+    for (const m of magList) {
+      const d2 = (s.x - m.x) ** 2 + (s.y - m.y) ** 2;
+      if (d2 < best) { best = d2; idx = m.i; }
+    }
+    return { idx, d: Math.sqrt(best) };
+  }
+
+  function resetState(useSliders = true) {
+    if (useSliders) {
+      state = {
+        x: num('initX') / 1000,
+        y: num('initY') / 1000,
+        vx: num('initVX') / 1000,
+        vy: num('initVY') / 1000,
+        t: 0
+      };
+    } else {
+      state = { x: state.x, y: state.y, vx: state.vx, vy: state.vy, t: 0 };
+    }
+    trail = [[state.x, state.y]];
+    phasePoints = [];
+    poincarePoints = [];
+    sampleBuffer = [];
+    bitBuffer = [];
+    bitOnes = 0;
+    bitTotal = 0;
+    previousDrivePhase = 0;
+  }
+
+  function randomizeInitial() {
+    const p = params();
+    const r = (0.015 + Math.random() * Math.min(0.082, p.viewRadius * 0.75));
+    const a = Math.random() * TAU;
+    const vx = (Math.random() - 0.5) * 0.18;
+    const vy = (Math.random() - 0.5) * 0.18;
+    el.initX.value = (r * Math.cos(a) * 1000).toFixed(1);
+    el.initY.value = (r * Math.sin(a) * 1000).toFixed(1);
+    el.initVX.value = (vx * 1000).toFixed(0);
+    el.initVY.value = (vy * 1000).toFixed(0);
+    updateLabels();
+    resetState(true);
+  }
+
+  function kick() {
+    state.vx += (Math.random() - 0.5) * 0.018;
+    state.vy += (Math.random() - 0.5) * 0.018;
+  }
+
+  function updateLabels() {
+    out.nMagnets.textContent = `${Math.round(num('nMagnets'))}개`;
+    out.magRadius.textContent = `${num('magRadius').toFixed(0)} mm`;
+    out.height.textContent = `${num('height').toFixed(0)} mm`;
+    out.magStrength.textContent = `${num('magStrength').toFixed(1)} ×10⁻⁸`;
+    out.length.textContent = `${num('length').toFixed(1)} mm`;
+    out.damping.textContent = `${num('damping').toFixed(3)} s⁻¹`;
+    out.driveAmp.textContent = `${num('driveAmp').toFixed(2)} m/s²`;
+    out.driveOmega.textContent = `${num('driveOmega').toFixed(2)} rad/s`;
+    out.initX.textContent = `${num('initX').toFixed(1)} mm`;
+    out.initY.textContent = `${num('initY').toFixed(1)} mm`;
+    out.initVX.textContent = `${num('initVX').toFixed(0)} mm/s`;
+    out.initVY.textContent = `${num('initVY').toFixed(0)} mm/s`;
+    out.dt.textContent = `${num('dt').toFixed(1)} ms`;
+    out.simSpeed.textContent = `${num('simSpeed').toFixed(1)}×`;
+    out.zoom.textContent = `±${num('zoom').toFixed(0)} mm`;
+    out.trailMax.textContent = `${Math.round(num('trailMax')).toLocaleString()}점`;
+    out.basinRes.textContent = `${Math.round(num('basinRes'))}²`;
+    out.basinTime.textContent = `${num('basinTime').toFixed(1)} s`;
+    fieldCache = null;
+  }
+
+  function resizeCanvas(canvas, context) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const w = Math.max(2, Math.floor(rect.width * dpr));
+    const h = Math.max(2, Math.floor(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      fieldCache = null;
+    }
+  }
+
+  function resizeAll() {
+    resizeCanvas(simCanvas, ctx);
+    resizeCanvas(phaseCanvas, phaseCtx);
+    resizeCanvas(basinCanvas, basinCtx);
+    drawBasinPlaceholder();
+  }
+
+  function worldToScreen(x, y, p, canvas = simCanvas) {
+    const scale = Math.min(canvas.width, canvas.height) / (2 * p.viewRadius);
+    return [canvas.width / 2 + x * scale, canvas.height / 2 - y * scale, scale];
+  }
+
+  function screenToWorld(px, py, p, canvas = simCanvas) {
+    const rect = canvas.getBoundingClientRect();
+    const dprX = canvas.width / rect.width;
+    const dprY = canvas.height / rect.height;
+    const xPix = px * dprX;
+    const yPix = py * dprY;
+    const scale = Math.min(canvas.width, canvas.height) / (2 * p.viewRadius);
+    return [(xPix - canvas.width / 2) / scale, -(yPix - canvas.height / 2) / scale];
+  }
+
+  function drawGrid(p) {
+    const w = simCanvas.width;
+    const h = simCanvas.height;
+    ctx.fillStyle = '#050915';
+    ctx.fillRect(0, 0, w, h);
+
+    if (p.showField) drawPotentialField(p);
+
+    const [, , scale] = worldToScreen(0, 0, p);
+    const gridStep = 0.02;
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.13)';
+    ctx.beginPath();
+    for (let x = -p.viewRadius; x <= p.viewRadius + 1e-9; x += gridStep) {
+      const [sx] = worldToScreen(x, 0, p);
+      ctx.moveTo(sx, 0); ctx.lineTo(sx, h);
+    }
+    for (let y = -p.viewRadius; y <= p.viewRadius + 1e-9; y += gridStep) {
+      const [, sy] = worldToScreen(0, y, p);
+      ctx.moveTo(0, sy); ctx.lineTo(w, sy);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.30)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    const [cx, cy] = worldToScreen(0, 0, p);
+    ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+    ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.23)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, p.R * scale, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPotentialField(p) {
+    if (!fieldCache || fieldCache.key !== fieldKey(p)) {
+      fieldCache = makeFieldCache(p);
+    }
+    if (fieldCache) {
+      ctx.save();
+      ctx.globalAlpha = 0.62;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(fieldCache.canvas, 0, 0, simCanvas.width, simCanvas.height);
+      ctx.restore();
+    }
+  }
+
+  function fieldKey(p) {
+    return [simCanvas.width, simCanvas.height, p.n, p.R, p.h, p.kMag, p.L, p.viewRadius].map(v => Number(v).toPrecision(5)).join('|');
+  }
+
+  function makeFieldCache(p) {
+    const size = 160;
+    const off = document.createElement('canvas');
+    off.width = size;
+    off.height = size;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(size, size);
+    const magList = magnets(p);
+    const values = new Float64Array(size * size);
+    let min = Infinity, max = -Infinity;
+    for (let j = 0; j < size; j++) {
+      for (let i = 0; i < size; i++) {
+        const x = ((i + 0.5) / size * 2 - 1) * p.viewRadius;
+        const y = (1 - (j + 0.5) / size * 2) * p.viewRadius;
+        const val = potentialOnly(x, y, p, magList);
+        const idx = j * size + i;
+        values[idx] = val;
+        if (Number.isFinite(val)) { min = Math.min(min, val); max = Math.max(max, val); }
+      }
+    }
+    const span = max - min || 1;
+    for (let idx = 0; idx < values.length; idx++) {
+      const raw = (values[idx] - min) / span;
+      const v = Math.max(0, Math.min(1, raw));
+      const t = Math.pow(v, 0.55);
+      const base = idx * 4;
+      img.data[base] = Math.round(10 + 70 * t);
+      img.data[base + 1] = Math.round(17 + 95 * (1 - Math.abs(t - 0.55)));
+      img.data[base + 2] = Math.round(34 + 140 * (1 - t));
+      img.data[base + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    return { canvas: off, key: fieldKey(p) };
+  }
+
+  function potentialOnly(x, y, p, magList) {
+    let u = 0.5 * (G / p.L) * (x * x + y * y);
+    for (const m of magList) {
+      const dx = x - m.x;
+      const dy = y - m.y;
+      const rho2 = dx * dx + dy * dy;
+      const h2 = p.h * p.h;
+      u += p.kMag * (rho2 - 2 * h2) / Math.pow(rho2 + h2, 2.5);
+    }
+    return u;
+  }
+
+  function drawMagnets(p, magList) {
+    const [, , scale] = worldToScreen(0, 0, p);
+    for (const m of magList) {
+      const [sx, sy] = worldToScreen(m.x, m.y, p);
+      const color = magnetPalette[m.i % magnetPalette.length];
+      const r = Math.max(7, 0.0048 * scale);
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, TAU);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.62)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(2,6,23,0.86)';
+      ctx.font = `${Math.max(10, r * 0.95)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(m.i + 1), sx, sy + 0.2);
+      ctx.restore();
+    }
+  }
+
+  function drawTrail(p) {
+    if (trail.length < 2) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < trail.length; i++) {
+      const [sx, sy] = worldToScreen(trail[i][0], trail[i][1], p);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.78)';
+    ctx.stroke();
+
+    if (p.showPoincare && poincarePoints.length) {
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.96)';
+      for (const pt of poincarePoints.slice(-500)) {
+        const [sx, sy] = worldToScreen(pt[0], pt[1], p);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2.1, 0, TAU);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawBob(p) {
+    const [sx, sy, scale] = worldToScreen(state.x, state.y, p);
+    const bobR = Math.max(6, 0.0055 * scale);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226,232,240,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(simCanvas.width / 2, simCanvas.height / 2);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+
+    ctx.shadowColor = '#f8fafc';
+    ctx.shadowBlur = 18;
+    const grd = ctx.createRadialGradient(sx - bobR * 0.35, sy - bobR * 0.35, bobR * 0.2, sx, sy, bobR);
+    grd.addColorStop(0, '#ffffff');
+    grd.addColorStop(0.35, '#cbd5e1');
+    grd.addColorStop(1, '#64748b');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(sx, sy, bobR, 0, TAU);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.stroke();
+
+    const vScale = 0.12 * scale;
+    const ex = sx + state.vx * vScale;
+    const ey = sy - state.vy * vScale;
+    ctx.strokeStyle = 'rgba(134, 239, 172, 0.9)';
+    ctx.fillStyle = 'rgba(134, 239, 172, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    const ang = Math.atan2(ey - sy, ex - sx);
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - 7 * Math.cos(ang - 0.45), ey - 7 * Math.sin(ang - 0.45));
+    ctx.lineTo(ex - 7 * Math.cos(ang + 0.45), ey - 7 * Math.sin(ang + 0.45));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPhase() {
+    const w = phaseCanvas.width;
+    const h = phaseCanvas.height;
+    phaseCtx.fillStyle = '#050915';
+    phaseCtx.fillRect(0, 0, w, h);
+
+    phaseCtx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+    phaseCtx.lineWidth = 1;
+    phaseCtx.beginPath();
+    phaseCtx.moveTo(0, h / 2); phaseCtx.lineTo(w, h / 2);
+    phaseCtx.moveTo(w / 2, 0); phaseCtx.lineTo(w / 2, h);
+    phaseCtx.stroke();
+
+    if (phasePoints.length < 2) return;
+    const p = params();
+    const xMax = p.viewRadius;
+    const vMax = 1.8;
+    phaseCtx.save();
+    phaseCtx.lineWidth = 1.1;
+    phaseCtx.strokeStyle = 'rgba(167, 139, 250, 0.72)';
+    phaseCtx.beginPath();
+    for (let i = 0; i < phasePoints.length; i++) {
+      const x = phasePoints[i][0];
+      const vx = phasePoints[i][1];
+      const sx = w / 2 + x / xMax * w * 0.47;
+      const sy = h / 2 - vx / vMax * h * 0.47;
+      if (i === 0) phaseCtx.moveTo(sx, sy); else phaseCtx.lineTo(sx, sy);
+    }
+    phaseCtx.stroke();
+    phaseCtx.fillStyle = 'rgba(251, 191, 36, 0.9)';
+    for (const pt of poincarePoints.slice(-500)) {
+      const sx = w / 2 + pt[0] / xMax * w * 0.47;
+      const sy = h / 2 - pt[2] / vMax * h * 0.47;
+      phaseCtx.beginPath();
+      phaseCtx.arc(sx, sy, 1.8, 0, TAU);
+      phaseCtx.fill();
+    }
+    phaseCtx.restore();
+  }
+
+  function updateResidualBits() {
+    sampleBuffer.push([state.x, state.y]);
+    if (sampleBuffer.length > 3) sampleBuffer.shift();
+    if (sampleBuffer.length < 3) return;
+    const [p0, p1, p2] = sampleBuffer;
+    const predX = p1[0] + (p1[0] - p0[0]);
+    const predY = p1[1] + (p1[1] - p0[1]);
+    const rx = p2[0] - predX;
+    const ry = p2[1] - predY;
+    const vx = p1[0] - p0[0];
+    const vy = p1[1] - p0[1];
+    const cross = vx * ry - vy * rx;
+    if (Math.abs(cross) < 1e-11) return;
+    const bit = cross > 0 ? 1 : 0;
+    bitBuffer.push(bit);
+    if (bit) bitOnes++;
+    bitTotal++;
+    if (bitBuffer.length > 96) bitBuffer.shift();
+  }
+
+  function stepSimulation() {
+    const p = params();
+    const magList = magnets(p);
+    const dt = p.dt;
+    const steps = Math.max(1, Math.min(120, Math.ceil((p.simSpeed / 60) / dt)));
+    let bitSampleCounter = 0;
+    for (let i = 0; i < steps; i++) {
+      const oldPhase = (p.driveOmega * state.t) % TAU;
+      state = rk4Step(state, dt, p, magList);
+      const newPhase = (p.driveOmega * state.t) % TAU;
+
+      if (!Number.isFinite(state.x + state.y + state.vx + state.vy)) {
+        resetState(true);
+        break;
+      }
+
+      const limit = p.viewRadius * 2.8;
+      if (Math.abs(state.x) > limit || Math.abs(state.y) > limit || Math.hypot(state.vx, state.vy) > 12) {
+        state.x *= 0.6;
+        state.y *= 0.6;
+        state.vx *= -0.2;
+        state.vy *= -0.2;
+      }
+
+      if (p.driveOn && p.showPoincare && oldPhase > newPhase) {
+        poincarePoints.push([state.x, state.y, state.vx, state.vy]);
+        if (poincarePoints.length > 1800) poincarePoints.shift();
+      }
+
+      bitSampleCounter++;
+      if (bitSampleCounter % 5 === 0) updateResidualBits();
+    }
+
+    trail.push([state.x, state.y]);
+    if (trail.length > p.trailMax) trail.splice(0, trail.length - p.trailMax);
+    phasePoints.push([state.x, state.vx]);
+    if (phasePoints.length > Math.min(p.trailMax, 14000)) phasePoints.splice(0, phasePoints.length - Math.min(p.trailMax, 14000));
+  }
+
+  function draw() {
+    resizeCanvas(simCanvas, ctx);
+    resizeCanvas(phaseCanvas, phaseCtx);
+    const p = params();
+    const magList = magnets(p);
+    drawGrid(p);
+    drawTrail(p);
+    drawMagnets(p, magList);
+    drawBob(p);
+    drawPhase();
+    updateHud(p, magList);
+  }
+
+  function updateHud(p, magList) {
+    const speed = Math.hypot(state.vx, state.vy);
+    const energy = pseudoEnergy(state, p, magList);
+    const near = nearestMagnet(state, magList);
+    stateHud.textContent = `x=${(state.x * 1000).toFixed(2)} mm, y=${(state.y * 1000).toFixed(2)} mm, vx=${(state.vx * 1000).toFixed(1)} mm/s, vy=${(state.vy * 1000).toFixed(1)} mm/s`;
+    paramHud.textContent = `N=${p.n}, R=${(p.R * 1000).toFixed(0)} mm, h=${(p.h * 1000).toFixed(0)} mm, L=${(p.L * 1000).toFixed(1)} mm, γ=${p.gamma.toFixed(3)} s⁻¹`;
+    timeMetric.textContent = `${state.t.toFixed(2)} s`;
+    speedMetric.textContent = speed.toFixed(3);
+    energyMetric.textContent = energy.toExponential(2);
+    nearestMetric.textContent = near.idx >= 0 ? `#${near.idx + 1} (${(near.d * 1000).toFixed(1)} mm)` : '-';
+    bitsText.textContent = bitBuffer.join('');
+    bitRatio.textContent = bitTotal ? `${(bitOnes / bitTotal).toFixed(3)} (${bitTotal.toLocaleString()} bits)` : '-';
+  }
+
+  function animate() {
+    if (running) stepSimulation();
+    draw();
+    requestAnimationFrame(animate);
+  }
+
+  function drawBasinPlaceholder() {
+    resizeCanvas(basinCanvas, basinCtx);
+    if (basinJob) return;
+    const w = basinCanvas.width, h = basinCanvas.height;
+    basinCtx.fillStyle = '#050915';
+    basinCtx.fillRect(0, 0, w, h);
+    const p = params();
+    const magList = magnets(p);
+    basinCtx.save();
+    basinCtx.translate(w / 2, h / 2);
+    const scale = Math.min(w, h) / (2 * p.viewRadius);
+    basinCtx.strokeStyle = 'rgba(148,163,184,0.16)';
+    basinCtx.beginPath();
+    basinCtx.arc(0, 0, p.viewRadius * scale * 0.82, 0, TAU);
+    basinCtx.stroke();
+    for (const m of magList) {
+      basinCtx.fillStyle = magnetPalette[m.i % magnetPalette.length];
+      basinCtx.beginPath();
+      basinCtx.arc(m.x * scale, -m.y * scale, Math.max(4, 0.004 * scale), 0, TAU);
+      basinCtx.fill();
+    }
+    basinCtx.fillStyle = 'rgba(226,232,240,0.72)';
+    basinCtx.textAlign = 'center';
+    basinCtx.font = `${Math.max(12, Math.floor(w / 34))}px ui-sans-serif, system-ui`;
+    basinCtx.fillText('흡인 영역 계산 버튼을 누르면 초기 위치별 최종 자석을 분류합니다.', 0, Math.min(55, h / 4));
+    basinCtx.restore();
+  }
+
+  function localAccelNoDrive(x, y, vx, vy, p, magList) {
+    return acceleration(x, y, vx, vy, 0, p, magList, false);
+  }
+
+  function rk4Local(x, y, vx, vy, dt, p, magList) {
+    const a1 = localAccelNoDrive(x, y, vx, vy, p, magList);
+    const k1x = vx, k1y = vy, k1vx = a1[0], k1vy = a1[1];
+
+    const x2 = x + k1x * dt * 0.5, y2 = y + k1y * dt * 0.5;
+    const vx2 = vx + k1vx * dt * 0.5, vy2 = vy + k1vy * dt * 0.5;
+    const a2 = localAccelNoDrive(x2, y2, vx2, vy2, p, magList);
+    const k2x = vx2, k2y = vy2, k2vx = a2[0], k2vy = a2[1];
+
+    const x3 = x + k2x * dt * 0.5, y3 = y + k2y * dt * 0.5;
+    const vx3 = vx + k2vx * dt * 0.5, vy3 = vy + k2vy * dt * 0.5;
+    const a3 = localAccelNoDrive(x3, y3, vx3, vy3, p, magList);
+    const k3x = vx3, k3y = vy3, k3vx = a3[0], k3vy = a3[1];
+
+    const x4 = x + k3x * dt, y4 = y + k3y * dt;
+    const vx4 = vx + k3vx * dt, vy4 = vy + k3vy * dt;
+    const a4 = localAccelNoDrive(x4, y4, vx4, vy4, p, magList);
+    const k4x = vx4, k4y = vy4, k4vx = a4[0], k4vy = a4[1];
+
+    return [
+      x + dt * (k1x + 2 * k2x + 2 * k3x + k4x) / 6,
+      y + dt * (k1y + 2 * k2y + 2 * k3y + k4y) / 6,
+      vx + dt * (k1vx + 2 * k2vx + 2 * k3vx + k4vx) / 6,
+      vy + dt * (k1vy + 2 * k2vy + 2 * k3vy + k4vy) / 6
+    ];
+  }
+
+  function classifyAttractor(x0, y0, p, magList) {
+    let x = x0, y = y0, vx = 0, vy = 0;
+    const dt = 0.022;
+    const steps = Math.max(80, Math.round(p.basinTime / dt));
+    const pFast = { ...p, gamma: Math.max(p.gamma, 0.08), driveOn: false };
+    for (let s = 0; s < steps; s++) {
+      const next = rk4Local(x, y, vx, vy, dt, pFast, magList);
+      x = next[0]; y = next[1]; vx = next[2]; vy = next[3];
+      if (!Number.isFinite(x + y + vx + vy)) break;
+      const speed = Math.hypot(vx, vy);
+      if (s > 120 && speed < 0.009) {
+        const near = nearestMagnet({ x, y }, magList);
+        if (near.d < Math.max(0.010, p.R * 0.32)) break;
+      }
+    }
+    return nearestMagnet({ x, y }, magList).idx;
+  }
+
+  function startBasin() {
+    cancelBasin();
+    const p = params();
+    const magList = magnets(p);
+    const res = p.basinRes;
+    const data = new Uint8ClampedArray(res * res * 4);
+    const classMap = new Int8Array(res * res);
+    classMap.fill(-1);
+    const view = p.viewRadius * 0.92;
+    let cursor = 0;
+    basinJob = { active: true, res, data, classMap, p, magList, view, cursor };
+    basinProgress.style.display = 'block';
+    basinProgressInner.style.width = '0%';
+    runBasinChunk();
+  }
+
+  function runBasinChunk() {
+    const job = basinJob;
+    if (!job || !job.active) return;
+    const { res, data, classMap, p, magList, view } = job;
+    const chunkStart = performance.now();
+    let processed = 0;
+
+    while (job.cursor < res * res && performance.now() - chunkStart < 26) {
+      const idx = job.cursor++;
+      const ix = idx % res;
+      const iy = Math.floor(idx / res);
+      const x = ((ix + 0.5) / res * 2 - 1) * view;
+      const y = (1 - (iy + 0.5) / res * 2) * view;
+      const rNorm = Math.hypot(x, y);
+      const base = idx * 4;
+      if (rNorm > view) {
+        data[base] = 5; data[base + 1] = 9; data[base + 2] = 21; data[base + 3] = 255;
+      } else {
+        const cls = classifyAttractor(x, y, p, magList);
+        classMap[idx] = cls;
+        const c = hexToRgb(magnetPalette[(cls >= 0 ? cls : 0) % magnetPalette.length]);
+        data[base] = Math.round(c.r * 0.85 + 6);
+        data[base + 1] = Math.round(c.g * 0.85 + 8);
+        data[base + 2] = Math.round(c.b * 0.85 + 12);
+        data[base + 3] = 255;
+      }
+      processed++;
+    }
+
+    const progress = job.cursor / (res * res);
+    basinProgressInner.style.width = `${Math.round(progress * 100)}%`;
+    drawBasinImage(job, false);
+
+    if (job.cursor < res * res) {
+      requestAnimationFrame(runBasinChunk);
+    } else {
+      emphasizeBoundaries(job);
+      drawBasinImage(job, true);
+      basinProgressInner.style.width = '100%';
+      setTimeout(() => { if (basinProgress) basinProgress.style.display = 'none'; }, 800);
+      basinJob = null;
+    }
+  }
+
+  function drawBasinImage(job, finalPass) {
+    resizeCanvas(basinCanvas, basinCtx);
+    const off = document.createElement('canvas');
+    off.width = job.res;
+    off.height = job.res;
+    const octx = off.getContext('2d');
+    const img = new ImageData(job.data, job.res, job.res);
+    octx.putImageData(img, 0, 0);
+    basinCtx.imageSmoothingEnabled = false;
+    basinCtx.fillStyle = '#050915';
+    basinCtx.fillRect(0, 0, basinCanvas.width, basinCanvas.height);
+    const size = Math.min(basinCanvas.width, basinCanvas.height) * 0.92;
+    const x = (basinCanvas.width - size) / 2;
+    const y = (basinCanvas.height - size) / 2;
+    basinCtx.drawImage(off, x, y, size, size);
+    if (finalPass) {
+      basinCtx.save();
+      basinCtx.fillStyle = 'rgba(226,232,240,0.83)';
+      basinCtx.font = `${Math.max(11, basinCanvas.width / 42)}px ui-sans-serif, system-ui`;
+      basinCtx.textAlign = 'right';
+      basinCtx.fillText(`${job.res}×${job.res}, T=${job.p.basinTime.toFixed(1)}s`, basinCanvas.width - 12, basinCanvas.height - 12);
+      basinCtx.restore();
+    }
+  }
+
+  function emphasizeBoundaries(job) {
+    const { res, data, classMap } = job;
+    const copy = new Uint8ClampedArray(data);
+    for (let y = 1; y < res - 1; y++) {
+      for (let x = 1; x < res - 1; x++) {
+        const idx = y * res + x;
+        const c = classMap[idx];
+        if (c < 0) continue;
+        const boundary = classMap[idx - 1] !== c || classMap[idx + 1] !== c || classMap[idx - res] !== c || classMap[idx + res] !== c;
+        if (boundary) {
+          const base = idx * 4;
+          copy[base] = 2; copy[base + 1] = 6; copy[base + 2] = 23; copy[base + 3] = 255;
+        }
+      }
+    }
+    job.data.set(copy);
+  }
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function cancelBasin() {
+    if (basinJob) basinJob.active = false;
+    basinJob = null;
+    basinProgress.style.display = 'none';
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    running = !running;
+    toggleBtn.textContent = running ? '일시정지' : '계속 실행';
+    toggleBtn.classList.toggle('primary', running);
+  });
+
+  resetBtn.addEventListener('click', () => resetState(true));
+  randomBtn.addEventListener('click', randomizeInitial);
+  kickBtn.addEventListener('click', kick);
+  basinBtn.addEventListener('click', startBasin);
+  cancelBasinBtn.addEventListener('click', cancelBasin);
+
+  simCanvas.addEventListener('click', (ev) => {
+    const p = params();
+    const [x, y] = screenToWorld(ev.offsetX, ev.offsetY, p);
+    el.initX.value = Math.max(-95, Math.min(95, x * 1000)).toFixed(1);
+    el.initY.value = Math.max(-95, Math.min(95, y * 1000)).toFixed(1);
+    el.initVX.value = 0;
+    el.initVY.value = 0;
+    updateLabels();
+    resetState(true);
+  });
+
+  for (const id of ids) {
+    el[id].addEventListener('input', () => {
+      updateLabels();
+      if (['nMagnets', 'magRadius', 'height', 'magStrength', 'length', 'zoom', 'showField'].includes(id)) {
+        fieldCache = null;
+        drawBasinPlaceholder();
+      }
+      if (['initX', 'initY', 'initVX', 'initVY'].includes(id)) resetState(true);
+    });
+  }
+
+  window.addEventListener('resize', resizeAll);
+  window.addEventListener('keydown', (ev) => {
+    if (ev.code === 'Space') {
+      ev.preventDefault();
+      toggleBtn.click();
+    } else if (ev.key.toLowerCase() === 'r') {
+      resetState(true);
+    }
+  });
+
+  updateLabels();
+  resizeAll();
+  resetState(true);
+  drawBasinPlaceholder();
+  animate();
+})();
+</script>
+</body>
+</html>
